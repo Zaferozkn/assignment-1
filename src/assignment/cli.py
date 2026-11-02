@@ -11,10 +11,7 @@ from assignment.agent import (
     ChessAgent,
     CodeAgent,
 )
-from assignment.chess_sandbox import ChessSandbox
 from assignment.task import Task
-from assignment.env import Environment
-from assignment.utils.image import build_testbed_image
 from assignment.eval.instances import available, load as load_instance
 
 DEFAULT_TASK = Path("tasks/chess-terminal-move")
@@ -89,6 +86,7 @@ def run_code_agent() -> None:
 
     parser = argparse.ArgumentParser(description=run_code_agent.__doc__)
     parser.add_argument("--task", type=Path, default=DEFAULT_TASK)
+    parser.add_argument("--backend", choices=("modal", "local"), default="modal", help="execution backend; local runs commands on this machine")
     _add_code_agent_arguments(parser)
     args = parser.parse_args()
 
@@ -98,10 +96,14 @@ def run_code_agent() -> None:
     model = _model(args.model)
 
     submitted_patch = ""
-    with Environment(
-        image=build_testbed_image(task),
-        cwd="/testbed",
-    ) as environment:
+    if args.backend == "local":
+        from assignment.local_env import LocalEnvironment
+        environment_context = LocalEnvironment(cwd=task.source)
+    else:
+        from assignment.env import Environment
+        from assignment.utils.image import build_testbed_image
+        environment_context = Environment(image=build_testbed_image(task), cwd="/testbed")
+    with environment_context as environment:
         agent = CodeAgent(
             task=task.problem_statement,
             environment=environment,
@@ -150,6 +152,7 @@ def run_swebench_agent() -> None:
     # SWE-bench images install the repository into a conda env named `testbed`
     # but never activate it, so without this `python` is conda's base env and
     # the repository's own dependencies are missing.
+    from assignment.env import Environment
     with Environment(
         image=instance.image, cwd="/testbed", conda_env="testbed"
     ) as environment:
@@ -208,6 +211,7 @@ def run_chess_agent() -> None:
         )
 
     model = _model(args.model)
+    from assignment.chess_sandbox import ChessSandbox
     with ChessSandbox(
         task=args.task,
         patch=patch,
