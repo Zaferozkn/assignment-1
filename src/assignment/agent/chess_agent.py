@@ -128,6 +128,11 @@ class ChessAgent(Agent):
                 elif name == "simulate_move" and SIMULATE_MOVE_TOOL in self.tools:
                     content = _simulate_move(self.chess_client, raw)
                 elif name == "run_python" and RUN_PYTHON_TOOL in self.tools:
+                    if live_move_used:
+                        raise ValueError("Only one live-board action may run per assistant turn; inspect the updated position first.")
+                    # A Python snippet may call play_move, so it counts as the
+                    # single state-changing action allowed in this batch.
+                    live_move_used = True
                     result = _run_python(self.env, self.python_sandbox_port, raw)
                     if result.startswith("<chess_error>"):
                         content = result
