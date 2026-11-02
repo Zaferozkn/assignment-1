@@ -1,6 +1,9 @@
 name: Assignment tests
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - chatgpt/complete-agent-assignment
