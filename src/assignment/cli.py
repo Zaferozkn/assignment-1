@@ -7,10 +7,7 @@ import json
 import os
 from pathlib import Path
 
-from assignment.agent import (
-    ChessAgent,
-    CodeAgent,
-)
+from assignment.agent.code_agent import CodeAgent
 from assignment.task import Task
 from assignment.eval.instances import available, load as load_instance
 
