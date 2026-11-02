@@ -18,7 +18,10 @@ from assignment.prompts import (
     CHESS_AGENT_SYSTEM_PROMPT_TEMPLATE,
     PROGRAMMATIC_CHESS_PROMPT,
 )
-from assignment.env import Environment
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from assignment.env import Environment
 
 
 def format_chess_state(state: dict[str, Any], *, include_legal_moves: bool = True) -> str:
