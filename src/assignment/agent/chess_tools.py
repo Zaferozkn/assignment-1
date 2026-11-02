@@ -82,8 +82,12 @@ def _run_python(env: Any, port: int, arguments: str) -> str:
         if result.get("returncode", -1) != 0:
             detail = result.get("exception_info") or result.get("stderr") or result.get("output") or "Sandbox command failed."
             return f"<chess_error>{detail}</chess_error>"
-        output = result.get("output", "")
-        # The runner writes its JSON payload to stdout; retain the exact JSON.
+        stderr = result.get("stderr", "")
+        if stderr:
+            return f"<chess_error>{stderr}</chess_error>"
+        # Read stdout specifically: Environment.output may concatenate streams.
+        # The runner writes its JSON payload to stdout; retain it exactly.
+        output = result.get("stdout", result.get("output", ""))
         return output.strip()
     except Exception as exc:
         return _error(exc)
