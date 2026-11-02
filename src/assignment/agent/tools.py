@@ -141,9 +141,9 @@ PLAY_MOVE_TOOL = {
 SIMULATE_MOVE_TOOL = {
     "type": "function",
     "function": {"name": "simulate_move", "description": "Simulate a position from a six-field FEN, optionally applying one UCI move without changing the live game.",
-                 "strict": True, "parameters": {"type": "object",
-                 "properties": {"fen": {"type": "string"}, "move": {"type": ["string", "null"]}},
-                 "required": ["fen", "move"], "additionalProperties": False}},
+                 "strict": False, "parameters": {"type": "object",
+                 "properties": {"fen": {"type": "string"}, "move": {"type": "string"}},
+                 "required": ["fen"], "additionalProperties": False}},
 }
 RUN_PYTHON_TOOL = {
     "type": "function",
