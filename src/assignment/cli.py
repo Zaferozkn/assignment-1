@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 from pathlib import Path
 
 from assignment.agent.code_agent import CodeAgent
@@ -94,6 +95,28 @@ def run_code_agent() -> None:
 
     submitted_patch = ""
     if args.backend == "local":
+        # The host-local backend is intentionally opt-in and must never run
+        # against an arbitrary checkout. Match the pinned task revision first.
+        if not task.source.is_dir():
+            raise SystemExit(
+                f"Task source checkout is missing at {task.source}. "
+                "Initialize the chess_app submodule before running."
+            )
+        revision = subprocess.run(
+            ["git", "-C", str(task.source), "rev-parse", "HEAD"],
+            capture_output=True, text=True, check=False,
+        )
+        if revision.returncode != 0:
+            raise SystemExit(
+                f"Task source is not a Git checkout: {task.source}"
+            )
+        actual_commit = revision.stdout.strip()
+        if actual_commit != task.base_commit:
+            raise SystemExit(
+                "Task source is not at its pinned base commit. "
+                f"Expected {task.base_commit}, found {actual_commit}. "
+                "Reset the disposable chess_app checkout before running."
+            )
         from assignment.local_env import LocalEnvironment
         environment_context = LocalEnvironment(cwd=task.source)
     else:
