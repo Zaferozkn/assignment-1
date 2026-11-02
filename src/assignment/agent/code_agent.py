@@ -6,7 +6,10 @@ from typing import Any
 
 from assignment.agent.base import DEFAULT_COMPACTION_KEEP_RECENT_STEPS, DEFAULT_COMPACTION_MAX_TOKENS, Agent, format_tool_output
 from assignment.agent.tools import EXECUTE_TOOL, SEND_MESSAGE_TOOL
-from assignment.env import Environment
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from assignment.env import Environment
 
 
 class CodeAgent(Agent):
