@@ -225,7 +225,19 @@ class Agent:
             prior = self.working_memory or ""
             compaction_prompt = [
                 {"role": "system", "content": COMPACTION_SYSTEM_PROMPT},
-                {"role": "user", "content": "Existing working memory:\n" + prior + "\n\nEarlier transcript to summarize:\n" + json.dumps(old_messages, ensure_ascii=False)},
+                {
+                    "role": "user",
+                    "content": (
+                        "Original agent system instructions (preserve these constraints):\n"
+                        + self.system_prompt
+                        + "\n\nOriginal task (the objective to retain):\n"
+                        + self.task_prompt
+                        + "\n\nExisting working memory:\n"
+                        + prior
+                        + "\n\nEarlier transcript to summarize:\n"
+                        + json.dumps(old_messages, ensure_ascii=False)
+                    ),
+                },
             ]
         ### Do not modify this section ###
         compaction_response = self.client.chat.completions.create(
