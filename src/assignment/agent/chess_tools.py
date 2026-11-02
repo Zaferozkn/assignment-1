@@ -62,7 +62,10 @@ def _play_move(client: httpx.Client, arguments: str) -> str:
         move = args.get("move")
         if not isinstance(move, str) or not move.strip():
             raise ValueError("move is required and must be a non-empty string.")
-        return json.dumps(_request_state(client, "POST", "/api/move", json={"move": move}))
+        state = _request_state(client, "POST", "/api/move", json={"move": move})
+        if not isinstance(state.get("fen"), str) or not state["fen"].strip():
+            raise ValueError("Chess server response is missing a string fen.")
+        return json.dumps(state)
     except Exception as exc:
         return _error(exc)
 
