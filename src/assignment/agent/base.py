@@ -276,9 +276,11 @@ class Agent:
     def run(self) -> None:
         try:
             while not self.finished:
-                self.maybe_compact_context()
+                # Do not spend a compaction request when the step budget means
+                # there cannot be another action request.
                 if self.steps_taken >= self.step_limit:
                     raise StepLimitError(f"Agent exceeded step limit ({self.step_limit}).")
+                self.maybe_compact_context()
                 action = self.query_language_model()
                 self.messages.append(action)
                 calls = action.get("tool_calls") or []
