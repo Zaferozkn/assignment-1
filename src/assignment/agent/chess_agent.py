@@ -137,15 +137,14 @@ class ChessAgent(Agent):
                     # single state-changing action allowed in this batch.
                     live_move_used = True
                     result = _run_python(self.env, self.python_sandbox_port, raw)
-                    if result.startswith("<chess_error>"):
-                        content = result
-                    else:
-                        # A snippet may have committed a live move. Refresh the
-                        # authoritative state before returning to the model.
-                        state = _game_state(self.chess_client, reset=False)
-                        self.last_state = state
-                        self.finished = bool(state.get("game_over"))
-                        content = result + "\n" + self.format_state(state)
+                    # A snippet may have committed a live move before returning
+                    # an error. Always refresh the authoritative board after the
+                    # sandbox invocation so the next model turn cannot act on a
+                    # stale position.
+                    state = _game_state(self.chess_client, reset=False)
+                    self.last_state = state
+                    self.finished = bool(state.get("game_over"))
+                    content = result + "\n" + self.format_state(state)
                 elif name == "invoke_skill" and self.skills:
                     content = _invoke_skill(self.skills, raw)
                 else:
