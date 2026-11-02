@@ -14,7 +14,10 @@ import yaml
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from assignment.env import Environment
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from assignment.env import Environment
 from assignment.agent.tools import INVOKE_SKILL_TOOL
 
 load_dotenv()
