@@ -130,13 +130,25 @@ INVOKE_SKILL_TOOL = {
     },
 }
 
-# TODO(3.1.a): Define an OpenAI function-tool schema named ``play_move``.
-# It must accept exactly one required string argument named ``move``, explain
-# that moves use UCI notation (for example e2e4), and reject extra arguments.
-PLAY_MOVE_TOOL: dict = {}
-
-# TODO(3.3): Define the `simulate_move` tool, like the `play_move` tool.
-SIMULATE_MOVE_TOOL: dict = {}
-
-# TODO()
-RUN_PYTHON_TOOL: dict = {}
+PLAY_MOVE_TOOL = {
+    "type": "function",
+    "function": {"name": "play_move",
+                 "description": "Play one legal chess move in UCI notation, such as e2e4 or e7e8q.",
+                 "strict": True, "parameters": {"type": "object",
+                 "properties": {"move": {"type": "string", "description": "A chess move in UCI notation, e.g. e2e4 or e7e8q."}},
+                 "required": ["move"], "additionalProperties": False}},
+}
+SIMULATE_MOVE_TOOL = {
+    "type": "function",
+    "function": {"name": "simulate_move", "description": "Simulate a position from a six-field FEN, optionally applying one UCI move without changing the live game.",
+                 "strict": False, "parameters": {"type": "object",
+                 "properties": {"fen": {"type": "string"}, "move": {"type": "string"}},
+                 "required": ["fen"], "additionalProperties": False}},
+}
+RUN_PYTHON_TOOL = {
+    "type": "function",
+    "function": {"name": "run_python", "description": "Run Python code in the sandbox with simulate_move and play_move helper functions.",
+                 "strict": True, "parameters": {"type": "object",
+                 "properties": {"code": {"type": "string"}},
+                 "required": ["code"], "additionalProperties": False}},
+}
