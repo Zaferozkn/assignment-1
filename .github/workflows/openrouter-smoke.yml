@@ -1,0 +1,58 @@
+name: OpenRouter model connection smoke test
+
+on:
+  push:
+    branches:
+      - chatgpt/complete-agent-assignment
+    paths:
+      - .github/workflows/openrouter-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - name: Verify OpenRouter API key and both assignment models
+        shell: python
+        run: |
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          key = os.environ.get("OPENAI_API_KEY", "")
+          if not key:
+              sys.exit("OPENAI_API_KEY GitHub Actions secret is missing")
+          models = ["deepseek/deepseek-v4-flash-0731", "openai/gpt-oss-120b"]
+          for model in models:
+              payload = json.dumps({
+                  "model": model,
+                  "messages": [{"role": "user", "content": "Reply with the single word OK."}],
+                  "max_tokens": 32,
+              }).encode()
+              request = urllib.request.Request(
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  data=payload,
+                  headers={
+                      "Authorization": "Bearer " + key,
+                      "Content-Type": "application/json",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=45) as response:
+                      result = json.load(response)
+              except urllib.error.HTTPError as exc:
+                  print(f"{model}: HTTP {exc.code}; model or provider not available")
+                  sys.exit(1)
+              except Exception as exc:
+                  print(f"{model}: request failed ({type(exc).__name__})")
+                  sys.exit(1)
+              if not result.get("choices"):
+                  sys.exit(f"{model}: response missing choices")
+              print(f"{model}: API OK; tokens used: {result.get('usage', {}).get('total_tokens', 'unknown')}")
