@@ -39,12 +39,12 @@ jobs:
         run: |
           test -n "$OPENAI_API_KEY" || { echo "Missing OpenRouter key"; exit 1; }
           test -n "$MODAL_TOKEN_ID" && test -n "$MODAL_TOKEN_SECRET" || { echo "Missing Modal credentials"; exit 1; }
-      - name: Run DeepSeek coding agent with a bounded 35-step budget
+      - name: Run DeepSeek coding agent with a bounded 45-step budget
         run: |
           uv run assignment-code-agent \
             --task tasks/chess-terminal-move \
             --model deepseek/deepseek-v4-flash-0731 \
-            --step-limit 35 \
+            --step-limit 45 \
             --skills-path tasks/code-skills \
             --trajectory artifacts/part1-trajectory.json \
             --patch-output artifacts/fix.patch
