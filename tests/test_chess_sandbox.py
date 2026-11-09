@@ -13,14 +13,12 @@ def running_sandboxes(app: modal.App) -> list[modal.Sandbox]:
 
 
 def test_chess_app_is_playable_through_modal_tunnel():
-    app = modal.App.lookup("swe-rex", create_if_missing=True)
-    assert not running_sandboxes(app), "Another swe-rex sandbox is already running."
-
     # This public test verifies the tunnel and API infrastructure without
     # depending on the intentionally broken engine search. The private grader
     # applies a candidate patch before exercising successful moves.
     with ChessSandbox() as sandbox:
-        assert len(running_sandboxes(app)) == 1
+        own_sandbox = sandbox.deployment._sandbox
+        assert own_sandbox is not None and own_sandbox.poll() is None
 
         current = sandbox.state()
         assert current["turn"] == "white"
@@ -31,4 +29,4 @@ def test_chess_app_is_playable_through_modal_tunnel():
 
         assert sandbox.reset()["history"] == []
 
-    assert not running_sandboxes(app), "Chess sandbox was not terminated after the test."
+    assert own_sandbox.poll() is not None, "Chess sandbox was not terminated after the test."
