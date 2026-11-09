@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -31,3 +33,43 @@ jobs:
         run: uv sync --all-groups --locked
       - name: Run non-Modal test suite
         run: uv run pytest -q
+
+  modal-integration:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+    steps:
+      - name: Check Modal credentials are configured
+        id: credentials
+        shell: bash
+        run: |
+          if [[ -n "$MODAL_TOKEN_ID" && -n "$MODAL_TOKEN_SECRET" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Modal credentials missing: configure MODAL_TOKEN_ID and MODAL_TOKEN_SECRET as GitHub Actions secrets."
+          fi
+      - name: Check out repository and testbed
+        if: steps.credentials.outputs.available == 'true'
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up Python
+        if: steps.credentials.outputs.available == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install uv
+        if: steps.credentials.outputs.available == 'true'
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install project and test dependencies
+        if: steps.credentials.outputs.available == 'true'
+        run: uv sync --all-groups --locked
+      - name: Run four Modal integration tests
+        if: steps.credentials.outputs.available == 'true'
+        run: uv run pytest -q -m modal
