@@ -40,6 +40,8 @@ jobs:
     env:
       MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
       MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      # The locked Modal 1.5.3 client does not recognize the server's 2026.10 default.
+      MODAL_IMAGE_BUILDER_VERSION: '2025.06'
     steps:
       - name: Check Modal credentials are configured
         id: credentials
