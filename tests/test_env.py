@@ -25,14 +25,27 @@ def env():
     sandbox is launched and torn down cleanly, and are reported as errors at
     setup/teardown of whichever test is running.
     """
+    # SWE-ReX hardcodes the Modal app name, so we can look up the app it will use
+    # and confirm nothing is already running on it.
+    app = modal.App.lookup("swe-rex", create_if_missing=True)
+    assert not running_sandboxes(app), (
+        "Active sandbox found on the `swe-rex` modal.App. If there are sandboxes "
+        "running from other projects, this test will fail."
+    )
+
     env = Environment()
-    sandbox = env.deployment._sandbox
-    assert sandbox is not None and sandbox.poll() is None, "Our Modal sandbox did not start."
-    try:
-        yield env
-    finally:
-        env.stop()
-        assert sandbox.poll() is not None, "Our Modal sandbox was not terminated."
+    assert len(running_sandboxes(app)) == 1, (
+        "Launched one sandbox for swe-rex but more than one running sandbox found. "
+        "Something has gone wrong."
+    )
+
+    yield env
+
+    env.stop()
+    assert not running_sandboxes(app), (
+        "Sandbox launched by test was terminated but a running sandbox was still "
+        "found. Something has gone wrong."
+    )
 
 
 def test_shell_command(env):
