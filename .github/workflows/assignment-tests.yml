@@ -35,7 +35,6 @@ jobs:
         run: uv run pytest -q
 
   modal-integration:
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
