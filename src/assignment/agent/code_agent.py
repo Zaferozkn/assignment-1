@@ -45,6 +45,10 @@ class CodeAgent(Agent):
                 "\n\nAvailable skills are listed below. Call invoke_skill with a skill name "
                 "to load its full instructions before following that workflow.\n"
                 "<skills>\n" + catalog + "\n</skills>"
+                "\nBefore concluding, invoke the appropriate submission skill, follow its "
+                "instructions to save the actual patch, and verify the submission "
+                "file exists and is nonempty. Do not finish with a plain-text "
+                "answer instead of submitting the required artifact."
             )
         self.system_prompt = system
         self.task_prompt = task
