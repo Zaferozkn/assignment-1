@@ -304,6 +304,10 @@ class Environment:
             finally:
                 if sandbox is not None:
                     await asyncio.wait_for(sandbox.terminate.aio(), timeout=timeout)
+                    # Termination is asynchronous on Modal's side. Wait for the
+                    # actual exit before returning, so cleanup checks cannot
+                    # race the platform's state transition.
+                    await asyncio.wait_for(sandbox.wait.aio(raise_on_termination=False), timeout=timeout)
 
         asyncio.run(_stop())
 

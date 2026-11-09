@@ -1,0 +1,51 @@
+name: Save verified Part 1 evidence in assignment branch
+
+on:
+  push:
+    branches:
+      - chatgpt/complete-agent-assignment
+    paths:
+      - .github/workflows/save-part1-evidence.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/complete-agent-assignment
+          persist-credentials: true
+      - name: Download successful validated Part 1 evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts
+          gh run download 42670134766 --repo Zaferozkn/assignment-1 \
+            --name part1-real-run --dir artifacts
+      - name: Verify both deliverables are genuine, complete files
+        run: |
+          test -s artifacts/fix.patch
+          test -s artifacts/part1-trajectory.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('artifacts/part1-trajectory.json').read_text())
+          assert isinstance(data,dict) and data.get('responses'), 'Missing actual model responses'
+          patch=Path('artifacts/fix.patch').read_text()
+          assert 'diff --git' in patch, 'Patch is not a git diff'
+          for token_marker in ('sk-or-v1-', 'as-Q1h', 'ak-J9d4'):
+              assert token_marker not in patch and token_marker not in json.dumps(data), 'Sensitive token found'
+          print('Validated patch and trajectory; recorded model calls:',len(data['responses']))
+          PY
+      - name: Commit verified evidence to assignment branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/fix.patch artifacts/part1-trajectory.json
+          git commit -m 'Save real validated Part 1 patch and agent trajectory'
+          git push origin HEAD:chatgpt/complete-agent-assignment

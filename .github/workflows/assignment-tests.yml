@@ -1,0 +1,90 @@
+name: Assignment tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - chatgpt/complete-agent-assignment
+  workflow_dispatch:
+    inputs:
+      run_modal_tests:
+        description: 'Run billable Modal integration tests'
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  # Push and pull_request both fire for the same commit. Serialize Modal runs
+  # across this repository to prevent simultaneous swe-rex sandboxes.
+  group: assignment-modal-integration
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install project and test dependencies
+        run: uv sync --all-groups --locked
+      - name: Run non-Modal test suite
+        run: uv run pytest -q
+
+  modal-integration:
+    # Modal sandboxes may incur charges; only run with explicit manual opt-in.
+    if: github.event_name == 'workflow_dispatch' && inputs.run_modal_tests == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      # The locked Modal 1.5.3 client does not recognize the server's 2026.10 default.
+      MODAL_IMAGE_BUILDER_VERSION: '2025.06'
+    steps:
+      - name: Check Modal credentials are configured
+        id: credentials
+        shell: bash
+        run: |
+          if [[ -n "$MODAL_TOKEN_ID" && -n "$MODAL_TOKEN_SECRET" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Modal credentials missing: configure MODAL_TOKEN_ID and MODAL_TOKEN_SECRET as GitHub Actions secrets."
+          fi
+      - name: Check out repository and testbed
+        if: steps.credentials.outputs.available == 'true'
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up Python
+        if: steps.credentials.outputs.available == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install uv
+        if: steps.credentials.outputs.available == 'true'
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install project and test dependencies
+        if: steps.credentials.outputs.available == 'true'
+        run: uv sync --all-groups --locked
+      - name: Run four Modal integration tests (billable, updated credentials)
+        if: steps.credentials.outputs.available == 'true'
+        run: uv run pytest -q -m modal

@@ -1,0 +1,84 @@
+name: Part 2 real compacted Django SWE-bench run
+
+on:
+  push:
+    branches:
+      - chatgpt/complete-agent-assignment
+    paths:
+      - .github/workflows/part2-compacted.yml
+
+permissions:
+  contents: write
+
+jobs:
+  compacted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_BASE_URL: https://openrouter.ai/api/v1
+      OPENAI_MODEL: deepseek/deepseek-v4-flash-0731
+      OPENAI_MAX_RETRIES: '1'
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      MODAL_IMAGE_BUILDER_VERSION: '2025.06'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install locked dependencies
+        run: uv sync --all-groups --locked
+      - name: Validate secrets and keep a limited step budget
+        run: |
+          test -n "$OPENAI_API_KEY" || { echo 'Missing API secret'; exit 1; }
+          test -n "$MODAL_TOKEN_ID" && test -n "$MODAL_TOKEN_SECRET" || { echo 'Missing Modal secrets'; exit 1; }
+      - name: Run real Django SWE-bench agent with 6000-token compaction
+        run: |
+          uv run assignment-swebench-agent django__django-15368 \
+            --model deepseek/deepseek-v4-flash-0731 \
+            --step-limit 45 \
+            --compact-threshold-tokens 6000 \
+            --skills-path tasks/code-skills \
+            --trajectory artifacts/django__django-15368-trajectory.json \
+            --patch-output artifacts/django__django-15368.patch
+      - name: Verify actual context compaction events
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('artifacts/django__django-15368-trajectory.json').read_text())
+          assert isinstance(data.get('responses'), list) and data['responses'], 'No model responses'
+          events=data.get('compactions', [])
+          print('Agent model calls:',len(data['responses']))
+          print('Compactions:',len(events))
+          for e in events:
+              print('before:',e.get('estimated_tokens_before'),'after:',e.get('estimated_tokens_after'))
+          assert events, 'No compaction events occurred at the required threshold'
+          assert any(e['estimated_tokens_after'] < e['estimated_tokens_before'] for e in events), 'No context reduction'
+          PY
+      - name: Verify patch passes Django SWE-bench
+        run: make check-swebench INSTANCE=django__django-15368
+      - name: Always save unmodified real evidence from this run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: django-compacted-real-run
+          path: |
+            artifacts/django__django-15368-trajectory.json
+            artifacts/django__django-15368.patch
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Persist passing compacted evidence into GitHub branch
+        if: success()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/django__django-15368-trajectory.json artifacts/django__django-15368.patch
+          git commit -m 'Save verified compacted Django agent trajectory and patch'
+          git push origin HEAD:chatgpt/complete-agent-assignment

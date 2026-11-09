@@ -5,16 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 from pathlib import Path
 
-from assignment.agent import (
-    ChessAgent,
-    CodeAgent,
-)
-from assignment.chess_sandbox import ChessSandbox
+from assignment.agent.code_agent import CodeAgent
 from assignment.task import Task
-from assignment.env import Environment
-from assignment.utils.image import build_testbed_image
 from assignment.eval.instances import available, load as load_instance
 
 DEFAULT_TASK = Path("tasks/chess-terminal-move")
@@ -89,6 +84,7 @@ def run_code_agent() -> None:
 
     parser = argparse.ArgumentParser(description=run_code_agent.__doc__)
     parser.add_argument("--task", type=Path, default=DEFAULT_TASK)
+    parser.add_argument("--backend", choices=("modal", "local"), default="modal", help="execution backend; local runs commands on this machine")
     _add_code_agent_arguments(parser)
     args = parser.parse_args()
 
@@ -98,10 +94,36 @@ def run_code_agent() -> None:
     model = _model(args.model)
 
     submitted_patch = ""
-    with Environment(
-        image=build_testbed_image(task),
-        cwd="/testbed",
-    ) as environment:
+    if args.backend == "local":
+        # The host-local backend is intentionally opt-in and must never run
+        # against an arbitrary checkout. Match the pinned task revision first.
+        if not task.source.is_dir():
+            raise SystemExit(
+                f"Task source checkout is missing at {task.source}. "
+                "Initialize the chess_app submodule before running."
+            )
+        revision = subprocess.run(
+            ["git", "-C", str(task.source), "rev-parse", "HEAD"],
+            capture_output=True, text=True, check=False,
+        )
+        if revision.returncode != 0:
+            raise SystemExit(
+                f"Task source is not a Git checkout: {task.source}"
+            )
+        actual_commit = revision.stdout.strip()
+        if actual_commit != task.base_commit:
+            raise SystemExit(
+                "Task source is not at its pinned base commit. "
+                f"Expected {task.base_commit}, found {actual_commit}. "
+                "Reset the disposable chess_app checkout before running."
+            )
+        from assignment.local_env import LocalEnvironment
+        environment_context = LocalEnvironment(cwd=task.source)
+    else:
+        from assignment.env import Environment
+        from assignment.utils.image import build_testbed_image
+        environment_context = Environment(image=build_testbed_image(task), cwd="/testbed")
+    with environment_context as environment:
         agent = CodeAgent(
             task=task.problem_statement,
             environment=environment,
@@ -150,6 +172,7 @@ def run_swebench_agent() -> None:
     # SWE-bench images install the repository into a conda env named `testbed`
     # but never activate it, so without this `python` is conda's base env and
     # the repository's own dependencies are missing.
+    from assignment.env import Environment
     with Environment(
         image=instance.image, cwd="/testbed", conda_env="testbed"
     ) as environment:
@@ -208,6 +231,7 @@ def run_chess_agent() -> None:
         )
 
     model = _model(args.model)
+    from assignment.chess_sandbox import ChessSandbox
     with ChessSandbox(
         task=args.task,
         patch=patch,
