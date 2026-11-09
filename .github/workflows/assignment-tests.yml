@@ -8,6 +8,12 @@ on:
     branches:
       - chatgpt/complete-agent-assignment
   workflow_dispatch:
+    inputs:
+      run_modal_tests:
+        description: 'Run billable Modal integration tests'
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   # Push and pull_request both fire for the same commit. Serialize Modal runs
@@ -41,6 +47,8 @@ jobs:
         run: uv run pytest -q
 
   modal-integration:
+    # Modal sandboxes may incur charges; only run with explicit manual opt-in.
+    if: github.event_name == 'workflow_dispatch' && inputs.run_modal_tests == true
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
