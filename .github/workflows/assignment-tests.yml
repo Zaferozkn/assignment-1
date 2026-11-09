@@ -69,6 +69,6 @@ jobs:
       - name: Install project and test dependencies
         if: steps.credentials.outputs.available == 'true'
         run: uv sync --all-groups --locked
-      - name: Run Modal integration tests (billable)
+      - name: Run four Modal integration tests (billable, updated credentials)
         if: steps.credentials.outputs.available == 'true'
         run: uv run pytest -q -m modal
