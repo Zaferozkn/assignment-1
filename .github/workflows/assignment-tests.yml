@@ -9,6 +9,12 @@ on:
       - chatgpt/complete-agent-assignment
   workflow_dispatch:
 
+concurrency:
+  # Push and pull_request both fire for the same commit. Serialize Modal runs
+  # across this repository to prevent simultaneous swe-rex sandboxes.
+  group: assignment-modal-integration
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
